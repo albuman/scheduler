@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="scripts/jquery-1.12.4.js"></script>
+    <script src="scripts/jquery-ui.js"></script>
+    <script src="scripts/ui.resizeEvents.js"></script>
+    <script src="scripts/ui.dragEvents.js"></script>
+    <script src="scripts/ui.resizableEvent.widget.js"></script>
+    <script src="scripts/ui.timeTable.widget.js"></script>
+    <script src="scripts/ui.modalWindow.widget.js"></script>
+    <script src="scripts/ui.scheduleEvents.widget.js"></script>
+
+    <link rel="stylesheet" href="css/code.jquery.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        td {
+            padding: 0;
+        }
+
+        table {
+            table-layout: fixed;
+        }
+
+        .time-sheduler {
+            max-width: 1000px;
+        }
+
+        .shedule-table {
+            color: #656565;
+            border-collapse: collapse;
+            width: 100%;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .shedule-table table {
+            border-collapse: collapse;
+        }
+
+        .shedule-table td {
+            height: 1.1em;
+        }
+
+        .shedule-table__days-section {
+            table-layout: fixed;
+        }
+
+        .shedule-table__placeholder {
+            width: 70px;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            border-left: none !important;
+        }
+
+        .shedule-table__days-section td {
+            padding: 5px 25px;
+            border-left: 1px solid rgb(209, 213, 217);
+            border-bottom: 1px solid rgb(209, 213, 217);
+            border-top: none;
+            text-align: center;
+        }
+
+        .shedule-table__hours-section td {
+            text-align: center;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            padding-left: 0;
+            padding-right: 0;
+            border-top: 1px solid rgb(209, 213, 217);
+        }
+
+        .shedule-table__events-table td {
+            padding-top: 5px;
+            padding-bottom: 5px;
+            border-bottom-width: 1px !important;
+            border-bottom-style: solid;
+            border-bottom-color: rgb(209, 213, 217);
+            border-left: 1px solid rgb(209, 213, 217);
+            background-color: #f1f2f4;
+        }
+
+        .shedule-table__events-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .shedule-table__hours-section table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            color: black;
+        }
+
+        .shedule-table__hours-section tr:first-of-type td{
+            border-top: none;
+        } 
+        .shedule-table__events-table tr:last-of-type td {
+            border-bottom: none!important;
+        }
+        .shedule-table__events-table td:last-of-type {
+            border-right: none;
+        }
+
+        .shedule-table__events-section {
+            position: relative;
+        }
+
+        .shedule-table__events-section tr,
+        .shedule-table__hours-section tr {
+            height: 30px;
+        }
+
+        .schedule-table__disabled .event-item__template {
+            background: #656565;
+            opacity: .5;
+        }
+
+        .schedule-table__disabled .resize-event__handle:before{
+            display: none;
+        }
+
+        .event-item {
+            color: black;
+            position: absolute;
+            z-index: 1;
+            padding: 0 10px;
+        }
+
+        .event-item:hover .event-item_remove-btn {
+            display: block;
+        }
+
+        .event-item__template {
+            border-radius: 5px;
+            content: '';
+            background: #b2dcfc;
+            width: 100%;
+            height: 100%;
+        }
+
+        .event-item_remove-btn {
+            display: none;
+            font-size: .7em;
+        }
+
+        .event-item_remove-btn:before {
+            content: 'X';
+            cursor: pointer;
+            display: block;
+            position: absolute;
+            z-index: 105;
+            top: 7px;
+            right: 15px;
+        }
+
+        .event-item__continue:before,
+        .event-item__continue:after,
+        .event-item__end.event-item__continue:before,
+        .event-item__start.event-item__continue:after {
+            font-size: .6em;
+            display: block;
+            position: absolute;
+            width: 100%;
+            left: 0;
+            text-align: center;
+        }
+
+        .event-item__continue:before,
+        .event-item__end.event-item__continue:before {
+            top: 5px;
+            content: "▲";
+        }
+
+        .event-item__continue:after,
+        .event-item__start.event-item__continue:after {
+            bottom: 5px;
+            content: "▼";
+        }
+
+        .event-item__start.event-item__continue:before,
+        .event-item__end.event-item__continue:after {
+            content: '';
+            display: none;
+        }
+
+        .event-item__helper {
+            color: white;
+            background: rgba(66, 139, 202, .6);
+            position: absolute;
+            z-index: 90!important;
+        }
+
+        .event-item__start.event-item__helper:before,
+        .event-item__end.event-item__helper:after {
+            content: " ";
+            display: block;
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 3px;
+            border-color: #00b0ff;
+        }
+
+        .event-item__start.event-item__helper:before {
+            top: 0 !important;
+            left: 0 !important;
+        }
+
+        .event-item__end.event-item__helper:after {
+            right: 0 !important;
+            left: auto;
+            bottom: 0 !important;
+        }
+
+        .event-Iitem__helper-time {
+            color: #3f51b5;
+            font-size: .8em;
+        }
+
+        .event-item__start-time {
+            position: absolute;
+            top: .3em;
+            left: .8em;
+        }
+
+        .event-item__end-time {
+            position: absolute;
+            bottom: .3em;
+            right: .8em;
+        }
+
+        .event-item__helper-overlapped {
+            background: rgba(222, 0, 0, .5);
+        }
+
+        .resize-event__handle {
+            position: absolute;
+            cursor: n-resize;
+            width: 100%;
+            padding: 0px 40%;
+            left: 0;
+            z-index: 100;
+        }
+
+        .resize-event__handle:before {
+            display: block;
+            content: '';
+            height: 2px;
+            background: #ffffff;
+        }
+
+        .resize-event__top-handle {
+            top: 1px;
+        }
+
+        .resize-event__bottom-handle {
+            bottom: 1px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="time-sheduler"></div>
+
+    <script>
+        var evtPlacer = $('.time-sheduler').scheduleEvents({
+            onTimeSlotBusy: function () {
+                console.log('slot busy')
+            },
+            onTimeSlotChange: function () {
+                console.log('time slot changed')
+            },
+            onTimeSlotRemove: function (evt, idObj) {
+                var that = $(this).scheduleEvents('instance');
+                that.removeEvent(idObj.id);
+            },
+            onTimeSlotMoved: function(evt, changesObj){
+                console.log(changesObj)
+            },
+            onTimeSlotAdd: function (evt) {
+                var that = $(this).scheduleEvents('instance');
+                var mousePosition = that.getMousePosition(evt);
+                var cellObj = that._getCellDataByPosition(mousePosition);
+
+                console.log(cellObj.time)
+
+
+            }
+        });
+        evtPlacer.scheduleEvents('instance')
+        
+        .addEvent({
+            from: {
+                day: '1',
+                hour: '12 : 00 am'
+            },
+            to: {
+                day: '1',
+                hour: '12:00 pm'
+            }
+        })
+        
+        .addEvent({
+            from: {
+                day: '1',
+                hour: '01: 00 pm'
+            },
+            to: {
+                day: '2',
+                hour: '01 : 00 am'
+            }
+        })
+        
+        .addEvent({
+            from: {
+                day: '4',
+                hour: '04 : 00 pm'
+            },
+            to: {
+                day: '5',
+                hour: '11 : 00 pm'
+            }
+        })
+        
+        .addEvent({
+            from: {
+                day: '2',
+                hour: '01:30 am'
+            },
+            to: {
+                day: '3',
+                hour: '12 : 00 am'
+            }
+        })
+
+        .addEvent({
+            from: {
+                day: '3',
+                hour: '12:00 am'
+            },
+            to: {
+                day: '4',
+                hour: '12 : 00 am'
+            }
+        })
+    </script>
+
+</body>
+
+</html>
