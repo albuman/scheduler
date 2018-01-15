@@ -1455,6 +1455,8 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
             movedBottom: function (evt, ui) {
                 var that = $(this).dragEvents("instance");
                 var parentHeight = self._get$EventSection().height();
+                var endHelper = self._get$EndHelper();
+                var startHelper = self._get$StartHelper();
 
                 var mousePosition = that.getMousePosition(evt);
                 var position = {
@@ -1463,16 +1465,30 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
 
                 //position = self.getCeilPosition(position)
 
-                if((position.top + that.helper.height()) > parentHeight){
-                    that.helper.css({
-                        top: position.top,
-                        height: that.helper.height() - ((position.top + that.helper.height()) - parentHeight)
+                //if((position.top + that.helper.height()) > parentHeight){
+                    self.forEachHelper(function(helper, dayOrder){
+                        if(helper.is(endHelper)){
+                            helper.css({
+                                height: helper.height() + (mousePosition.top - that.startMousePosition.top)
+                            });
+                        };
+
+                        if(helper.is(startHelper)){
+                            helper.css({
+                                top: helper.position().top + (mousePosition.top - that.startMousePosition.top),
+                                height: helper.height() - (mousePosition.top - that.startMousePosition.top)
+                            });
+                        }
+
+                        
+
                     })
-                } else {
-                    that.helper.css({
-                        top: position.top,
-                    })
-                }
+                    
+                // } else {
+                //     that.helper.css({
+                //         top: position.top,
+                //     })
+                // }
 
                 that.updateHelperPosition(position)
                 console.log(that.startMousePosition.top - mousePosition.top, position.top)
