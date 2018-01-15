@@ -15,9 +15,9 @@ $.widget('custom.dragEvents', $.ui.draggable, {
         // if (!noPropagation) {
         var ui = this._uiHash();
         
-        if(/y/.test(this.options.axis)){
+        //if(/y/.test(this.options.axis)){
             this.updatePosition(event, ui);
-        }
+        //}
 
         if (this._trigger("drag", event, ui) === false) {
             // this._mouseUp(new $.Event("mouseup", event));
@@ -61,7 +61,7 @@ $.widget('custom.dragEvents', $.ui.draggable, {
 
         if ((this.helperPosition.top + gridY) < (mousePosition.top - this.offset.click.top)) {
             this._trigger('movedBottom', evt, ui);
-        } else if (this.helperPosition.top > (mousePosition.top - this.offset.click.top)) {
+        } else if ((this.helperPosition.top - gridY) >= (mousePosition.top - this.offset.click.top)) {
             this._trigger('movedTop', evt, ui);
         }
 

@@ -1146,6 +1146,7 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                 that._trigger('updateOriginalPosition', evt, ui);
                 that._trigger('initHelpers', evt, ui);
                 that._trigger('displayTime', evt, ui);
+                that.startMousePosition = that.getMousePosition(evt);
 
                 store.oldTime = self.getTimeSlotInfo(event);
             },
@@ -1426,13 +1427,56 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
             },
             movedTop: function (evt, ui) {
                 var that = $(this).dragEvents("instance");
+                var mousePosition = that.getMousePosition(evt);
+                var position = {
+                    top: mousePosition.top - that.offset.click.top
+                };
 
-                that._trigger('updateVerticalPosition', evt, ui);
+                //position = self.getCeilPosition(position)
+
+                if(position.top < 0){
+                    that.helper.css({
+                        height: that.helper.height() + position.top
+                    })
+                } else {
+                    that.helper.css({
+                        top: position.top,
+                    })
+                }
+
+                that.updateHelperPosition(position)
+                console.log(that.startMousePosition.top - mousePosition.top, position.top)
+
+
+
+                // that._trigger('updateVerticalPosition', evt, ui);
             },
             movedBottom: function (evt, ui) {
                 var that = $(this).dragEvents("instance");
+                var parentHeight = self._get$EventSection().height();
 
-                that._trigger('updateVerticalPosition', evt, ui);
+                var mousePosition = that.getMousePosition(evt);
+                var position = {
+                    top: mousePosition.top - that.offset.click.top,
+                };
+
+                //position = self.getCeilPosition(position)
+
+                if((position.top + that.helper.height()) > parentHeight){
+                    that.helper.css({
+                        top: position.top,
+                        height: that.helper.height() - ((position.top + that.helper.height()) - parentHeight)
+                    })
+                } else {
+                    that.helper.css({
+                        top: position.top,
+                    })
+                }
+
+                that.updateHelperPosition(position)
+                console.log(that.startMousePosition.top - mousePosition.top, position.top)
+
+                //that._trigger('updateVerticalPosition', evt, ui);
             },
             movedRight: function (evt, ui) {
                 var that,
