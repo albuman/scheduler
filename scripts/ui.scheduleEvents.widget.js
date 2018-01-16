@@ -188,25 +188,25 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
         eventEnd = event.to;
 
         sequenceId = store.events.filter(function (event) {
-                return event.id != eventId;
-            })
+            return event.id != eventId;
+        })
             .filter(function (evt) {
                 return eventStart.day == evt.to.day;
             })
             .concat(event)
             .sort(function (a, b) {
-                if (eventStart.day == b.to.day) {
-                    if (eventStart.fullHour == b.to.fullHour) {
-                        return eventStart.minutes > b.from.minutes
+                if (eventStart.day == a.to.day) {
+                    if (eventStart.fullHour == a.to.fullHour) {
+                        return eventStart.minutes < a.to.minutes
                     }
-                    return eventStart.fullHour > b.from.fullHour
+                    return eventStart.fullHour < a.to.fullHour
                 }
 
-                if (eventEnd.day == b.from.day) {
-                    if (eventEnd.fullHour == b.from.fullHour) {
-                        return eventEnd.minutes < b.from.minutes
+                if (eventStart.day == b.to.day) {
+                    if (eventStart.fullHour == b.to.fullHour) {
+                        return eventStart.minutes < b.to.minutes
                     }
-                    return eventEnd.fullHour < b.from.fullHour
+                    return eventStart.fullHour < b.to.fullHour
                 }
 
             })
@@ -217,9 +217,10 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                 return memo;
             }, -1);
 
-        if (this.eventStartsLate(event)) {
-            ++sequenceId;
-        };
+            if(this.eventStartsLate(event)){
+                ++sequenceId;
+            }
+
 
         return sequenceId;
     },
@@ -567,7 +568,7 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
         } else if (this.eventStartsLate(eventClone) && !this.eventEndsAtMidnight(eventClone)) {
             event.isOneDayEvent = false;
 
-            for (var dayIdx = startDayIndex, i = 0; i <= weekDaysLen; i++, dayIdx++) {
+            for (var dayIdx = startDayIndex, i = 0; i <= weekDaysLen; i++ , dayIdx++) {
                 dayIdx = dayIdx % weekDaysLen;
 
                 renderOptions = this.getDefaultRenderOptions(dayIdx, event.id);
@@ -2097,27 +2098,53 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                 }
             },
             renderToEnd: function (evt, ui) {
-                var o = self.options,
-                    store = self.store,
-                    that = $(this).resizeEvents('instance'),
-                    mousePosition = self.getCeilPosition(ui.mousePosition),
-                    cellDataUnderMouse = self._getCellDataByPosition(mousePosition),
-                    cellTime = cellDataUnderMouse.time,
-                    cellCoords = cellDataUnderMouse.coordinates,
-                    $parent = that.options.container,
-                    eventIdAttr = self.options.eventIdAttr,
-                    eventId = $(this).attr(eventIdAttr),
-                    events = self._getEventsObjsById(eventId),
-                    prevEvent = self._getEventsObjsById(eventId)[store.prevDay],
-                    activeHelper = store.helpers[cellTime.day],
-                    prevHelper = store.helpers[store.prevDay],
-                    startDay = +store.startDate.day,
-                    endDay = +store.endDate.day,
-                    weekDays = self.options.weekDays,
-                    borderWidth = self.getBorderWidth(),
-                    parentHeight = that.pHeight - borderWidth,
-                    eventCoords, cellGeometry, event, finishCell,
+
+                var o,
+                    store,
+                    that,
+                    endDay,
+                    events,
+                    eventId,
+                    $parent,
+                    startDay,
+                    cellTime,
+                    prevHelper,
+                    prevEvent,
+                    weekDays,
+                    cellCoords,
+                    mousePosition,
+                    eventIdAttr,
+                    activeHelper,
+                    borderWidth,
+                    parentHeight,
+                    cellDataUnderMouse,
+                    eventCoords,
+                    cellGeometry,
+                    event, finishCell,
                     cssRules, finishCellCoords;
+
+
+
+                o = self.options;
+                store = self.store;
+                that = $(this).resizeEvents('instance');
+                mousePosition = self.getCeilPosition(ui.mousePosition);
+                cellDataUnderMouse = self._getCellDataByPosition(mousePosition);
+                cellTime = cellDataUnderMouse.time;
+                cellCoords = cellDataUnderMouse.coordinates;
+                $parent = that.options.container;
+                eventIdAttr = self.options.eventIdAttr;
+                eventId = $(this).attr(eventIdAttr);
+                events = self._getEventsObjsById(eventId);
+                prevEvent = self._getEventsObjsById(eventId)[store.prevDay];
+                activeHelper = store.helpers[cellTime.day];
+                prevHelper = store.helpers[store.prevDay];
+                self.store.endDate.day = self.getEventEndDayToRender(self._getEventById(eventId));
+                startDay = +store.startDate.day;
+                endDay = +store.endDate.day;
+                weekDays = self.options.weekDays;
+                borderWidth = self.getBorderWidth();
+                parentHeight = that.pHeight - borderWidth;
 
                 function createHelper(cssObj) {
                     var currentHelper,
@@ -2155,10 +2182,10 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                     self.setHelperStartClass(that.helper);
 
                     for (var eventObj,
-                            cssRules,
-                            $helperclone,
-                            start = ++startDay,
-                            finish = ++endDay; start != finish; start++) {
+                        cssRules,
+                        $helperclone,
+                        start = ++startDay,
+                        finish = ++endDay; start != finish; start++) {
 
                         if (start == weekDays.length) {
                             start = 0;
@@ -2231,9 +2258,9 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                     self.setHelperEndClass(eventEndHelper);
 
                     for (var cssRules,
-                            $helperclone,
-                            start = ++startDay,
-                            finish = endDay; start != finish; start++) {
+                        $helperclone,
+                        start = ++startDay,
+                        finish = endDay; start != finish; start++) {
 
                         if (start == weekDays.length) {
                             start = 0;
@@ -2313,10 +2340,10 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                     self.setHelperStartClass(that.helper);
 
                     for (var eventObj,
-                            finishCell,
-                            $helperclone,
-                            start = ++startDay,
-                            finish = endDay; start <= finish; start++) {
+                        finishCell,
+                        $helperclone,
+                        start = ++startDay,
+                        finish = endDay; start <= finish; start++) {
 
                         cellGeometry = self.getCellGeometryByDay(start);
                         cssRules = {
@@ -2347,25 +2374,45 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
             },
 
             renderToStart: function (evt, ui) {
-                var o = self.options,
-                    that = $(this).resizeEvents('instance'),
-                    store = self.store,
-                    mousePosition = self.getFloorPosition(ui.mousePosition),
-                    cellDataUnderMouse = self._getCellDataByPosition(mousePosition),
-                    cellTime = cellDataUnderMouse.time,
-                    cellCoords = cellDataUnderMouse.coordinates,
-                    $parent = that.options.container,
-                    eventIdAttr = self.options.eventIdAttr,
-                    eventId = $(this).attr(eventIdAttr),
-                    events = self._getEventsObjsById(eventId),
-                    startDay = +store.startDate.day,
-                    endDay = +store.endDate.day,
-                    weekDays = self.options.weekDays,
+                var o,
+                    that,
+                    store,
+                    events,
+                    endDay,
+                    startDay,
+                    weekDays,
+                    weekDaysLen,
+                    borderWidth,
+                    cellTime,
+                    cellCoords,
+                    $parent,
+                    eventId,
+                    eventIdAttr,
+                    mousePosition,
+                    cellDataUnderMouse,
                     eventCoords, cellGeometry,
-                    borderWidth = self.getBorderWidth(),
-                    parentHeight = that.pHeight - borderWidth,
+                    parentHeight,
                     startCellCoords, startCell, cssRules;
-                    
+
+                o = self.options;
+                that = $(this).resizeEvents('instance');
+                store = self.store;
+                mousePosition = self.getFloorPosition(ui.mousePosition);
+                cellDataUnderMouse = self._getCellDataByPosition(mousePosition);
+                cellTime = cellDataUnderMouse.time;
+                cellCoords = cellDataUnderMouse.coordinates;
+                $parent = that.options.container;
+                eventIdAttr = self.options.eventIdAttr;
+                eventId = $(this).attr(eventIdAttr);
+                events = self._getEventsObjsById(eventId);
+                startDay = +store.startDate.day;
+                endDay = +store.endDate.day;
+                weekDays = self.options.weekDays;
+                eventCoords, cellGeometry;
+                borderWidth = self.getBorderWidth();
+                parentHeight = that.pHeight - borderWidth;
+
+
 
                 function createHelper(cssObj) {
                     var baseRules = {
@@ -2400,10 +2447,10 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                     self.addHelper(that.helper, endDay);
 
                     for (var eventObj,
-                            event,
-                            $helperclone,
-                            start = --startDay,
-                            finish = --endDay; finish != start; finish--) {
+                        event,
+                        $helperclone,
+                        start = --startDay,
+                        finish = --endDay; finish != start; finish--) {
 
                         if (finish < 0) {
                             finish = weekDays.length - 1;
@@ -2479,9 +2526,9 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                     self.addHelper(eventEndHelper, endDay);
 
                     for (var cssRules,
-                            $helperclone,
-                            start = ++startDay,
-                            finish = endDay; true; start++) {
+                        $helperclone,
+                        start = ++startDay,
+                        finish = endDay; true; start++) {
 
                         start = start % weekDays.length;
 
@@ -2562,8 +2609,8 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                     self.addHelper(that.helper, endDay);
 
                     for (var $helperclone,
-                            start = startDay,
-                            finish = --endDay; finish >= start; finish--) {
+                        start = startDay,
+                        finish = --endDay; finish >= start; finish--) {
 
                         cellGeometry = self.getCellGeometryByDay(finish);
                         cssRules = {

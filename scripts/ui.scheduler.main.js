@@ -4,10 +4,12 @@ $.widget('custom.scheduler', {
         create: '',
         update: '',
         remove: '',
-        readParams: {}
+        readParams: {},
+        allowReadSlots: true
     },
 
     _create: function () {
+        this._super();
         this.init(this.options)
     },
 
@@ -431,6 +433,24 @@ $.widget('custom.scheduler', {
     toggleSpinner: function (toggle) {
         toggle ? globalModule.startWaitAnimation(this.element) :
             globalModule.stopWaitAnimation(this.element);
+
+        return this;
+    },
+
+    allowRead: function () {
+        return this.options.allowReadSlots;
+    },
+
+    setInProcess: function () {
+        this.options.allowReadSlots = false;
+
+        return this;
+    },
+
+    setOutOfProcess: function () {
+        this.options.allowReadSlots = true;
+
+        return this;
     },
 
     readSlots: function (params) {
@@ -448,60 +468,72 @@ $.widget('custom.scheduler', {
 
         schedulerInst = $(this.element).scheduleEvents('instance');
 
-        this.toggleSpinner(true);
+        if (this.allowRead()) {
 
-        return $.ajax({
-            type: "POST",
-            contentType: "application/json",
-            url: self.options.read,
-            data: JSON.stringify(readParams)
-        }).done(function (slots) {
+            this.toggleSpinner(true)
+                .setInProcess();
 
-            slots.forEach(function (timeSlot) {
-                var endHour,
-                    endTime,
-                    startTime,
-                    startHour,
-                    endMinutes,
-                    startMinutes;
 
-                startHour = timeSlot.Open.Time / 100;
-                endHour = timeSlot.Close.Time / 100;
+            return $.ajax({
+                type: "POST",
+                contentType: "application/json",
+                url: self.options.read,
+                data: JSON.stringify(readParams)
+            }).done(function (slots) {
 
-                startTime = {
-                    hour: Math.floor(startHour),
-                    minutes: ((startHour - Math.floor(startHour)) * 100).toFixed(0)
-                };
-                endTime = {
-                    hour: Math.floor(endHour),
-                    minutes: ((endHour - Math.floor(endHour)) * 100).toFixed(0)
-                };
+                slots.forEach(function (timeSlot) {
+                    var endHour,
+                        endTime,
+                        startTime,
+                        startHour,
+                        endMinutes,
+                        startMinutes;
 
-                schedulerInst.addEvent({
-                    from: {
-                        hour: startTime.hour,
-                        minutes: startTime.minutes,
-                        day: timeSlot.Open.DayOfWeek
-                    },
-                    to: {
-                        hour: endTime.hour,
-                        minutes: endTime.minutes,
-                        day: timeSlot.Close.DayOfWeek
-                    }
+                    startHour = timeSlot.Open.Time / 100;
+                    endHour = timeSlot.Close.Time / 100;
+
+                    startTime = {
+                        hour: Math.floor(startHour),
+                        minutes: ((startHour - Math.floor(startHour)) * 100).toFixed(0)
+                    };
+                    endTime = {
+                        hour: Math.floor(endHour),
+                        minutes: ((endHour - Math.floor(endHour)) * 100).toFixed(0)
+                    };
+
+                    schedulerInst.addEvent({
+                        from: {
+                            hour: startTime.hour,
+                            minutes: startTime.minutes,
+                            day: timeSlot.Open.DayOfWeek
+                        },
+                        to: {
+                            hour: endTime.hour,
+                            minutes: endTime.minutes,
+                            day: timeSlot.Close.DayOfWeek
+                        }
+                    });
+
                 });
 
+                self._trigger('schedulerDataBound');
+                self.setOutOfProcess();
+
+            }).always(function () {
+                self.toggleSpinner(false);
             });
 
-            self._trigger('schedulerDataBound');
-        }).always(function () {
-            self.toggleSpinner(false);
-        });
+        } else {
+            return $.Deferred().reject();
+        }
     },
 
     cleanSlots: function () {
-        var schedulerInst = $(this.element).scheduleEvents('instance');
-
-        schedulerInst.cleanSlots();
+        var schedulerInst = this.options.schedulerInstance;
+        
+        if (this.allowRead()) {
+            schedulerInst.cleanSlots();
+        }
     },
 
     _sendHttp: function (params) {
@@ -531,15 +563,14 @@ $.widget('custom.scheduler', {
         var self = this,
             schedulerInstance;
 
-            if(this.element.data('scheduler')){
-                return this;
-            }
-
         self.modalWindowContent = $($('#scheduler-modal-content').html());
 
         $(self.element).scheduleEvents(self.initOptions());
+
         schedulerInstance = $(self.element).scheduleEvents('instance');
-        
+
+        this.options.schedulerInstance = schedulerInstance;
+
         schedulerInstance.disable();
         self.initModalContent();
 
@@ -547,19 +578,21 @@ $.widget('custom.scheduler', {
             schedulerInstance.enable();
         });
     },
-    getTimeSlots: function(){
-        var schedulerInst = $(this.element).scheduleEvents('instance');
+    getTimeSlots: function () {
 
-        return schedulerInst.getTimeSlots();
+        return this.options.schedulerInstance.getTimeSlots();
     },
     destroy: function () {
-        var schedulerInst = $(this.element).scheduleEvents('instance');
+        var dataObject,
+            schedulerInst;
+
+        schedulerInst = this.options.schedulerInstance;
 
         if (schedulerInst) {
             schedulerInst.destroy();
             schedulerInst._destroy();
+            // this.options.schedulerInstance = undefined;
         }
-
     }
 
 });
