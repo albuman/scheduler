@@ -286,6 +286,9 @@
             },
             onTimeSlotMoved: function(evt, changesObj){
                 console.log(changesObj)
+                var that = $(this).scheduleEvents('instance');
+
+                that.updateEventsPosition(changesObj.event)
             },
             onTimeSlotAdd: function (evt) {
                 var that = $(this).scheduleEvents('instance');

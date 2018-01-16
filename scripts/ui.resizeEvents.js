@@ -250,7 +250,8 @@ $.widget('custom.resizeEvents', {
             ._resetValues();
     },
     _removehelper: function () {
-        this.helper.remove();
+        if (this.helper)
+            this.helper.remove();
 
         return this;
     },

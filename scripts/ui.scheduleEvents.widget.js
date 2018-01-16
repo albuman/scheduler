@@ -196,17 +196,17 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
             .concat(event)
             .sort(function (a, b) {
                 if (eventStart.day == b.to.day) {
-                    if (a.from.fullHour == b.to.fullHour) {
-                        return a.from.minutes > b.from.minutes
+                    if (eventStart.fullHour == b.to.fullHour) {
+                        return eventStart.minutes > b.from.minutes
                     }
-                    return a.from.fullHour > b.from.fullHour
+                    return eventStart.fullHour > b.from.fullHour
                 }
 
                 if (eventEnd.day == b.from.day) {
-                    if (a.to.fullHour == b.from.fullHour) {
-                        return a.to.minutes < b.from.minutes
+                    if (eventEnd.fullHour == b.from.fullHour) {
+                        return eventEnd.minutes < b.from.minutes
                     }
-                    return a.to.fullHour < b.from.fullHour
+                    return eventEnd.fullHour < b.from.fullHour
                 }
 
             })
@@ -1812,6 +1812,8 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                 store.startDate = options.from;
                 store.endDate = options.to;
 
+                store.endDate.day = self.getEventEndDayToRender(event);
+
                 store.oldTime = self.getTimeSlotInfo(event);
 
                 $(this).dragEvents({
@@ -2363,7 +2365,7 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                     borderWidth = self.getBorderWidth(),
                     parentHeight = that.pHeight - borderWidth,
                     startCellCoords, startCell, cssRules;
-
+                    
 
                 function createHelper(cssObj) {
                     var baseRules = {
