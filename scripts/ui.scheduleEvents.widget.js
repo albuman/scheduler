@@ -217,9 +217,9 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                 return memo;
             }, -1);
 
-            if(this.eventStartsLate(event)){
-                ++sequenceId;
-            }
+        if (this.eventStartsLate(event)) {
+            ++sequenceId;
+        }
 
 
         return sequenceId;
@@ -1142,6 +1142,8 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                 eventId = $(this).attr(self.options.eventIdAttr);
                 event = self._getEventById(eventId);
 
+                store.startDay = event.from.day;
+                store.endDay = event.to.day;
 
                 that._trigger('updateGridCoordinates', evt, ui);
                 that._trigger('updateOriginalPosition', evt, ui);
@@ -1212,7 +1214,6 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
 
                     } else {
                         self.addHelper(ui.helper, dayOrder);
-                        store.startDay = dayOrder;
                         currentHelper = ui.helper;
                         that.helperPosition = currentHelper.position();
                         currentHelper.append($(o.helperTimeTemplate))
@@ -1428,25 +1429,56 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
             },
             movedTop: function (evt, ui) {
                 var that = $(this).dragEvents("instance");
+                var store = self.store;
+                var $parent = self._get$EventSection();
+                var parentHeight = $parent.height();
+                var endHelper = self._get$EndHelper();
+                var borderWidth = self.getBorderWidth();
+                var startHelper = self._get$StartHelper();
                 var mousePosition = that.getMousePosition(evt);
                 var position = {
-                    top: mousePosition.top - that.offset.click.top
+                    top: mousePosition.top - that.offset.click.top,
+                    left: mousePosition.left
                 };
 
-                //position = self.getCeilPosition(position)
+                var cellUnderMouse = self._getCellDataByPosition(position);
 
-                if(position.top < 0){
+
+                if(!cellUnderMouse && (position.top < borderWidth)){
+                    // self.addHelper(that.helper, store.startDay);
+                    var cellData = self._getCellDataByPosition({
+                        top: parentHeight - borderWidth,
+                        left: self.getCellGeometryByDay(store.startDay - 1).left//TODO: store.startDay - 1 can be less than 0
+                    });
+                    var startHelper = $('<div />').css(cellData.coordinates);
+                    $parent.append(startHelper)
+
+                    self.addHelper(startHelper, store.startDay - 1)
+
+                    return;
+                }
+
+
+                if (!self.isTheSamePosition(cellUnderMouse.coordinates, that.prevPosition)) {
+                    that.prevPosition = cellUnderMouse.coordinates;
+                    that.updateHelperPosition(that.prevPosition)
                     that.helper.css({
-                        height: that.helper.height() + position.top
-                    })
-                } else {
-                    that.helper.css({
-                        top: position.top,
+                        top: that.prevPosition.top
                     })
                 }
 
-                that.updateHelperPosition(position)
-                console.log(that.startMousePosition.top - mousePosition.top, position.top)
+                // if(position.top < 0){
+                //     that.helper.css({
+                //         height: that.helper.height() + position.top
+                //     })
+                // } else {
+                //     that.helper.css({
+                //         top: position.top,
+                //     })
+                // }
+
+                // that.updateHelperPosition(position)
+                // console.log(that.startMousePosition.top - mousePosition.top, position.top)
 
 
 
@@ -1461,37 +1493,50 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                 var mousePosition = that.getMousePosition(evt);
                 var position = {
                     top: mousePosition.top - that.offset.click.top,
+                    left: mousePosition.left
                 };
+
+                var cellUnderMouse = self._getCellDataByPosition(position);
+
+                
+
+                if (!self.isTheSamePosition(cellUnderMouse.coordinates, that.prevPosition)) {
+                    that.prevPosition = cellUnderMouse.coordinates;
+                    that.updateHelperPosition(that.prevPosition);
+                    that.helper.css({
+                        top: that.prevPosition.top
+                    });
+                }
 
                 //position = self.getCeilPosition(position)
 
                 //if((position.top + that.helper.height()) > parentHeight){
-                    self.forEachHelper(function(helper, dayOrder){
-                        if(helper.is(endHelper)){
-                            helper.css({
-                                height: helper.height() + (mousePosition.top - that.startMousePosition.top)
-                            });
-                        };
+                // self.forEachHelper(function(helper, dayOrder){
+                //     if(helper.is(endHelper)){
+                //         helper.css({
+                //             height: helper.height() + (mousePosition.top - that.startMousePosition.top)
+                //         });
+                //     };
 
-                        if(helper.is(startHelper)){
-                            helper.css({
-                                top: helper.position().top + (mousePosition.top - that.startMousePosition.top),
-                                height: helper.height() - (mousePosition.top - that.startMousePosition.top)
-                            });
-                        }
+                //     if(helper.is(startHelper)){
+                //         helper.css({
+                //             top: helper.position().top + (mousePosition.top - that.startMousePosition.top),
+                //             height: helper.height() - (mousePosition.top - that.startMousePosition.top)
+                //         });
+                //     }
 
-                        
 
-                    })
-                    
+
+                // })
+
                 // } else {
                 //     that.helper.css({
                 //         top: position.top,
                 //     })
                 // }
 
-                that.updateHelperPosition(position)
-                console.log(that.startMousePosition.top - mousePosition.top, position.top)
+                // that.updateHelperPosition(position)
+                // console.log(that.startMousePosition.top - mousePosition.top, position.top)
 
                 //that._trigger('updateVerticalPosition', evt, ui);
             },

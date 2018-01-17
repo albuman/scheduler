@@ -61,7 +61,7 @@ $.widget('custom.dragEvents', $.ui.draggable, {
 
         if ((this.helperPosition.top + gridY) < (mousePosition.top - this.offset.click.top)) {
             this._trigger('movedBottom', evt, ui);
-        } else if ((this.helperPosition.top - gridY) >= (mousePosition.top - this.offset.click.top)) {
+        } else if ((this.helperPosition.top) >= (mousePosition.top - this.offset.click.top)) {
             this._trigger('movedTop', evt, ui);
         }
 
