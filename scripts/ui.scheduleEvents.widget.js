@@ -1145,6 +1145,8 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                 store.startDay = event.from.day;
                 store.endDay = event.to.day;
 
+                console.log(store.startDay, store.endDay)
+
                 that._trigger('updateGridCoordinates', evt, ui);
                 that._trigger('updateOriginalPosition', evt, ui);
                 that._trigger('initHelpers', evt, ui);
@@ -1428,6 +1430,7 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                     .text(self.getFormattedString(endCellTime));
             },
             movedTop: function (evt, ui) {
+                var o = self.options;
                 var that = $(this).dragEvents("instance");
                 var store = self.store;
                 var $parent = self._get$EventSection();
@@ -1435,37 +1438,137 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                 var endHelper = self._get$EndHelper();
                 var borderWidth = self.getBorderWidth();
                 var startHelper = self._get$StartHelper();
+                var startCellPosition, endCellPosition;
                 var mousePosition = that.getMousePosition(evt);
                 var position = {
                     top: mousePosition.top - that.offset.click.top,
                     left: mousePosition.left
                 };
 
-                var cellUnderMouse = self._getCellDataByPosition(position);
+                var topCell = self._getCellDataByPosition(position);
 
+                var cellUnderMouse = self._getCellDataByPosition(self.getMousePosition(evt));
 
-                if(!cellUnderMouse && (position.top < borderWidth)){
+                if (!cellUnderMouse) return;
+
+                if (!topCell && (position.top < borderWidth)) {
                     // self.addHelper(that.helper, store.startDay);
                     var cellData = self._getCellDataByPosition({
                         top: parentHeight - borderWidth,
-                        left: self.getCellGeometryByDay(store.startDay - 1).left//TODO: store.startDay - 1 can be less than 0
+                        left: self.getCellGeometryByDay(store.startDay).left//TODO: store.startDay - 1 can be less than 0
                     });
-                    var startHelper = $('<div />').css(cellData.coordinates);
-                    $parent.append(startHelper)
 
-                    self.addHelper(startHelper, store.startDay - 1)
+                    if (!store.helpers[store.startDay - 1]) {
+                        var helper = $('<div />')
+                            .addClass(o.eventHelperClass)
+                            .append($(o.helperTimeTemplate))
+                            .css({
+                                position: 'absolute',
+                                top: cellData.coordinates.top,
+                                left: cellData.coordinates.left,
+                                height: cellData.coordinates.height,
+                                width: cellData.coordinates.width
+                            });
+
+                        endHelper.css({
+                            height: endHelper.height() - cellData.coordinates.height
+                        })
+
+                        $parent.append(helper)
+                        // self.addHelper(startHelper, store.startDay);
+                        self.addHelper(helper, store.startDay - 1);
+                        self.removeHelperStartClass(startHelper);
+                        self.setHelperStartClass(helper);
+
+                    } else {
+                        var startCellData, endCellData;
+
+                        startCellPosition = self.getCeilPosition({
+                            top: startHelper.position().top - cellData.coordinates.height,
+                            left: cellData.coordinates.left,
+                        });
+
+                        endCellPosition = self.getFloorPosition({
+                            top: endHelper.height() - cellData.coordinates.height,
+                            left: cellData.coordinates.left,
+                        });
+
+
+                        startCellData = self._getCellDataByPosition(startCellPosition);
+
+                        endCellData = self._getCellDataByPosition(endCellPosition);
+
+                        if (!self.isTheSamePosition(cellUnderMouse.coordinates, that.prevPosition)) {
+                            console.log(startCellData.coordinates, that.prevPosition)
+                            that.prevPosition = cellUnderMouse.coordinates;
+                            that.updateHelperPosition(cellUnderMouse.coordinates)
+
+                            startHelper.css({
+                                top: startCellData.coordinates.top,
+                                height: parentHeight - startCellData.coordinates.top,
+                            });
+
+                            endHelper.css({
+                                height: endCellData.coordinates.top
+                            })
+                        }
+
+
+                    }
 
                     return;
+                } else {
+                    
+
+                    if (!self.isTheSamePosition(topCell.coordinates, that.prevPosition)) {
+                        that.prevPosition = topCell.coordinates;
+                        that.updateHelperPosition(that.prevPosition)
+                        
+                        self.forEachHelper(function (helper, dayOrder) {
+                            var startCellData,
+                                endCellData,
+                                startCellPosition,
+                                endCellPosition;
+    
+                            if (helper.is(startHelper)) {
+    
+                                startCellPosition = self.getCeilPosition({
+                                    top: helper.position().top - cellUnderMouse.coordinates.height,
+                                    left: helper.position().left
+                                });
+    
+                                startCellData = self._getCellDataByPosition(startCellPosition);
+    
+    
+                                helper.css({
+                                    top: startCellData.coordinates.top
+                                });
+    
+                            } else if (helper.is(endHelper)) {
+                                endCellPosition = self.getFloorPosition({
+                                    top: helper.height() - cellUnderMouse.coordinates.height,
+                                    left: helper.position().left
+                                });
+    
+                                endCellData = self._getCellDataByPosition(endCellPosition);
+    
+                                helper.css({
+                                    top: endCellData.coordinates.top
+                                });
+                            }
+                        })
+                    }
+
                 }
 
 
-                if (!self.isTheSamePosition(cellUnderMouse.coordinates, that.prevPosition)) {
-                    that.prevPosition = cellUnderMouse.coordinates;
-                    that.updateHelperPosition(that.prevPosition)
-                    that.helper.css({
-                        top: that.prevPosition.top
-                    })
-                }
+                // if (!self.isTheSamePosition(cellUnderMouse.coordinates, that.prevPosition)) {
+                //     that.prevPosition = cellUnderMouse.coordinates;
+                //     that.updateHelperPosition(that.prevPosition)
+                //     that.helper.css({
+                //         top: that.prevPosition.top
+                //     })
+                // }
 
                 // if(position.top < 0){
                 //     that.helper.css({
@@ -1498,7 +1601,7 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
 
                 var cellUnderMouse = self._getCellDataByPosition(position);
 
-                
+
 
                 if (!self.isTheSamePosition(cellUnderMouse.coordinates, that.prevPosition)) {
                     that.prevPosition = cellUnderMouse.coordinates;
@@ -1625,8 +1728,8 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                 event = self._getEventById(eventId);
                 eventSection = self._get$EventSection();
                 startDay, endDay, startCellObj, endCellObj;
-                startHelper = self._get$StartHelper(eventId);
-                endHelper = self._get$EndHelper(eventId);
+                startHelper = self._get$StartHelper();
+                endHelper = self._get$EndHelper();
                 startDayPosition = startHelper.position();
                 endDayPosition = endHelper.position();
 
