@@ -287,8 +287,9 @@
             onTimeSlotMoved: function(evt, changesObj){
                 console.log(changesObj)
                 var that = $(this).scheduleEvents('instance');
-
-                that.updateEventsPosition(changesObj.event)
+                if(that.slotHasChanged(changesObj.oldTime, changesObj.currentTime)){
+                    that.updateEventsPosition(changesObj.event);
+                }
             },
             onTimeSlotAdd: function (evt) {
                 var that = $(this).scheduleEvents('instance');
@@ -327,11 +328,11 @@
         .addEvent({
             from: {
                 day: '6',
-                hour: '06 : 00 am'
+                hour: '06 : 15 am'
             },
             to: {
                 day: '2',
-                hour: '05 : 00 am'
+                hour: '05 : 10 am'
             }
         })
         

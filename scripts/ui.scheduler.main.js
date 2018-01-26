@@ -355,11 +355,11 @@
                         endHour = timeSlot.Close.Time / 100;
 
                         startTime = {
-                            hour: Math.floor(startHour),
+                            hour: Math.floor(startHour).toString(),
                             minutes: ((startHour - Math.floor(startHour)) * 100).toFixed(0)
                         };
                         endTime = {
-                            hour: Math.floor(endHour),
+                            hour: Math.floor(endHour).toString(),
                             minutes: ((endHour - Math.floor(endHour)) * 100).toFixed(0)
                         };
 
@@ -378,6 +378,7 @@
 
                     });
 
+                    self.disable();
                     self._trigger('schedulerDataBound');
                     self.setOutOfProcess();
 
@@ -414,11 +415,19 @@
             );
 
             return $.ajax(params)
-                .done(function () {
+               .done(function () {
                     self.toggleSpinner(false);
-                    self.cleanSlots();
-                    self.readSlots();
+                   self.cleanSlots();
+                   self.readSlots();
                 });
+        },
+
+        disable: function(){
+            this.options.schedulerInstance.disable();
+        },
+
+        enable: function(){
+            this.options.schedulerInstance.enable();
         },
 
         init: function () {
@@ -433,9 +442,7 @@
 
             schedulerInstance.disable();
 
-            this.readSlots(this.options.readParams).done(function () {
-                schedulerInstance.enable();
-            });
+            this.readSlots(this.options.readParams);
         },
         getTimeSlots: function () {
 

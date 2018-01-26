@@ -111,6 +111,18 @@ $.widget('custom.resizeEvents', {
         this.grid = [x, y];
     },
 
+    stylesWasChanged: function (oldStyles, newStyles) {
+        var styleProps = Object.keys(oldStyles);
+
+        return styleProps.reduce(function (isChanged, prop) {
+            if (oldStyles[prop] != newStyles[prop]) {
+                isChanged = true;
+            }
+
+            return isChanged;
+        }, false)
+    },
+
     _makeGridResizing: function (evt) {
         var options = this.options;
         var grid = this.grid || options.grid;
@@ -119,19 +131,21 @@ $.widget('custom.resizeEvents', {
         var mousePosition = this.getMousePosition(evt);
 
         this.grid = typeof grid === 'number' ? [grid, grid] : grid;
-        var size = this.fakeSize || this.size;
+        var size = this.size;
+        var oldSize = $.extend(true, {}, size);
+
         var x = grid[0], y = grid[1];
 
 
         if (this._isTopHandleActive) {
 
             if (mousePosition.top < size.top && (size.top > 0)) {
-                size.top = size.top - y;
-                size.height = size.height + y;
+                // size.top = size.top - y;
+                // size.height = size.height + y;
                 this._trigger('resize', evt, this.ui());
             } else if (mousePosition.top > (size.top + y)) {
-                size.top = size.top + y;
-                size.height = size.height - y;
+                // size.top = size.top + y;
+                // size.height = size.height - y;
                 this._trigger('resize', evt, this.ui());
             }
 
@@ -148,12 +162,12 @@ $.widget('custom.resizeEvents', {
         } else {
 
             if ((mousePosition.top > (size.top + size.height)) && (mousePosition.top < this.pHeight)) {
-                size.top = size.top;
-                size.height = size.height + y;
+                // size.top = size.top;
+                // size.height = size.height + y;
                 this._trigger('resize', evt, this.ui());
             } else if (mousePosition.top < (size.top + size.height - y)) {
-                size.top = size.top;
-                size.height = size.height - y;
+                // size.top = size.top;
+                // size.height = size.height - y;
                 this._trigger('resize', evt, this.ui());
             }
 
@@ -172,9 +186,10 @@ $.widget('custom.resizeEvents', {
             return;
         }
 
-        this.helper.css(this.size);
-        this._trigger('updatedHelperGeometry', evt, this.ui());
-
+        if (this.stylesWasChanged(oldSize, this.size)) {
+            this.helper.css(this.size);
+            this._trigger('updatedHelperGeometry', evt, this.ui());
+        }
     },
 
     _updateElementGeometry: function () {

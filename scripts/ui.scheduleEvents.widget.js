@@ -193,33 +193,23 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
             .filter(function (evt) {
                 return eventStart.day == evt.to.day;
             })
-            .concat(event)
-            .sort(function (a, b) {
-                if (eventStart.day == a.to.day) {
-                    if (eventStart.fullHour == a.to.fullHour) {
-                        return eventStart.minutes < a.to.minutes
+            .reduce(function (memo, evt) {
+                if (eventStart.fullHour == evt.to.fullHour) {
+                    if (eventStart.minutes >= evt.to.minutes) {
+                        memo++;
+                        return memo;
                     }
-                    return eventStart.fullHour < a.to.fullHour
-                }
-
-                if (eventStart.day == b.to.day) {
-                    if (eventStart.fullHour == b.to.fullHour) {
-                        return eventStart.minutes < b.to.minutes
-                    }
-                    return eventStart.fullHour < b.to.fullHour
-                }
-
-            })
-            .reduce(function (memo, evt, sequenceId) {
-                if (event.id == evt.id) {
-                    memo = sequenceId;
+                    memo++;
+                } else if (eventStart.fullHour > evt.to.fullHour) {
+                    memo++;
                 }
                 return memo;
-            }, -1);
 
-            if(this.eventStartsLate(event)){
-                ++sequenceId;
-            }
+            }, 0);
+
+        if (this.eventStartsLate(event)) {
+            ++sequenceId;
+        }
 
 
         return sequenceId;
@@ -249,10 +239,6 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
 
     disable: function () {
         var o = this.options;
-
-        if (this.isDisabled()) {
-            return this;
-        }
 
         o.disabled = true;
 
@@ -296,10 +282,6 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
 
     enable: function () {
         var o = this.options;
-
-        if (!this.isDisabled()) {
-            return this;
-        };
 
         o.disabled = false;
 
@@ -1624,13 +1606,25 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
         );
     },
     isStartHourLate: function () {
-        var store = this.store;
+        var store,
+            endHourOrder,
+            startHourOrder
+
+        store = this.store;
+        startHourOrder = this._getHourOrder(store.startDate);
+        endHourOrder = this._getHourOrder(store.endDate);
 
         if (this.isMidnight(store.endDate)) {
             return false;
         };
 
-        return this._getHourOrder(store.startDate) >= this._getHourOrder(store.endDate);
+        if (startHourOrder > endHourOrder) {
+            return true;
+        } else if (startHourOrder == endHourOrder) {
+            return store.startDate.minutes >= store.endDate.minutes;
+        }
+
+        return false;
     },
     isStartDayLate: function () {
         var store = this.store;
@@ -1761,41 +1755,17 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
 
                     if (self.isStartEvent(event.$event)) {
                         self.setHelperStartClass(currentHelper);
+                        currentHelper.find('.' + o.helperStartTimeClass) //display start time
+                            .text(self.getFormattedString(currentEvent.from));
                     };
 
                     if (self.isEndEvent(event.$event)) {
                         self.setHelperEndClass(currentHelper);
+                        currentHelper.find('.' + o.helperEndTimeClass) //display end time
+                            .text(self.getFormattedString(currentEvent.to));
                     };
 
-                    if (currentEvent.from.minutes || currentEvent.to.minutes) {
-
-                        bottomCoords = {
-                            top: event.coordinates.top + event.coordinates.height,
-                            left: event.coordinates.left
-                        };
-
-                        topCellData = self._getCellDataByPosition(event.coordinates, dayOrder);
-                        bottomCellData = self._getCellDataByPosition(bottomCoords, dayOrder);
-
-
-                        recalculatedHeight = (bottomCellData.coordinates.top + bottomCellData.coordinates.height) - topCellData.coordinates.top;
-
-                        if (currentHelper.is(that.helper)) {
-                            that.updateHelperGeometry({
-                                top: topCellData.coordinates.top,
-                                height: recalculatedHeight
-                            });
-                            that.helper.css(that.size);
-                        } else {
-                            currentHelper.css({
-                                top: topCellData.coordinates.top,
-                                height: recalculatedHeight
-                            });
-                        }
-                    }
                 }, eventId);
-
-                that._trigger('resize', evt, ui);
 
             },
             start: function (evt, ui) {
@@ -1821,43 +1791,66 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                     disabled: true
                 });
 
-                if (that._isTopHandleActive) {
-                    store.prevDay = store.startDate.day;
-                    that._trigger('updateGridCoordinates', evt, {
-                        day: store.startDate.day,
-                        mousePosition: ui.mousePosition
-                    });
-
-                } else {
-                    store.prevDay = store.endDate.day;
-                    that._trigger('updateGridCoordinates', evt, {
-                        day: store.endDate.day,
-                        mousePosition: ui.mousePosition
-                    });
-                }
-
+                that._trigger('updateGridCoordinates', evt, ui);
                 that._trigger('renderHelpers', evt, ui);
-                that._trigger('displayTime', evt, ui);
 
             },
 
-            updateGridCoordinates: function (evt, params) {
+            updateGridCoordinates: function (evt, ui) {
                 var that,
+                    step,
+                    store,
+                    event,
+                    events,
+                    eventId,
                     cellData,
-                    currentDay,
-                    mousePosition;
+                    currentDate,
+                    mousePosition,
+                    verticalResizeSteps;
 
                 that = $(this).resizeEvents("instance");
-                currentDay = params ? params.day : undefined;
-                mousePosition = params.mousePosition ? params.mousePosition : undefined;
+                store = self.store;
+                eventId = $(this).attr(self.options.eventIdAttr);
+                eventsObj = self._getEventsObjsById(eventId);
 
-                cellData = self._getCellDataByPosition(mousePosition, currentDay);
+                mousePosition = that.getMousePosition(evt);
+
+                if (that._isTopHandleActive) {
+                    currentDate = store.startDate;
+                } else {
+                    currentDate = store.endDate;
+                }
+
+                store.prevDay = currentDate.day;
+                cellData = self._getCellDataByPosition(mousePosition, store.prevDay);
 
                 if (cellData) {
-                    that.updateGridSizes(
-                        cellData.cell.outerWidth(),
-                        cellData.cell.outerHeight()
-                    );
+                    if (self.eventHasMinutes(currentDate)) {
+                        verticalResizeSteps = [];
+                        event = eventsObj[store.prevDay];
+
+                        //to reduce resizing length when timeslot start/end in cell range 
+                        if (that._isTopHandleActive) {
+                            verticalResizeSteps.push(event.coordinates.top - cellData.coordinates.top);
+                            verticalResizeSteps.push((cellData.coordinates.top + cellData.coordinates.height) - event.coordinates.top);
+                            step = Math.max.apply(null, verticalResizeSteps);
+                        } else {
+                            verticalResizeSteps.push((event.coordinates.top + event.coordinates.height) - cellData.coordinates.top);
+                            verticalResizeSteps.push((cellData.coordinates.top + cellData.coordinates.height) - (event.coordinates.top + event.coordinates.height));
+                            step = Math.min.apply(null, verticalResizeSteps);
+                        }
+                        
+                        that.updateGridSizes(
+                            cellData.cell.outerWidth(),
+                            step
+                        );
+                    } else {
+                        //by default resize length is cell height
+                        that.updateGridSizes(
+                            cellData.cell.outerWidth(),
+                            cellData.cell.outerHeight()
+                        );
+                    }
                 }
             },
             resize: function (evt, ui) {
@@ -1877,7 +1870,6 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                 eventIdAttr = self.options.eventIdAttr;
                 eventId = $(this).attr(eventIdAttr);
                 event = self._getEventById(eventId);
-
 
                 if (that._isTopHandleActive) {
                     mousePosition = self.getCeilPosition(ui.mousePosition);
@@ -1912,11 +1904,7 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                 }
 
                 if (self.isTheSameDay()) {
-                    if (that._isTopHandleActive) {
-                        that._trigger('renderToEnd', evt, ui);
-                    } else {
-                        that._trigger('renderToStart', evt, ui);
-                    }
+                    that._trigger('reRenderHelpers', evt, ui);
                 }
 
                 that._trigger('checkOverlapping', evt, ui);
@@ -1924,6 +1912,7 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
             },
             displayTime: function (evt, ui) {
                 var o,
+                    that,
                     store,
                     endDay,
                     startDay,
@@ -1938,11 +1927,14 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                     endHelperHeight,
                     endHelperPosition,
                     endTimeTopCoords,
+                    startDayMinutes,
+                    endDayMinutes,
                     startHelperPosition;
 
 
                 store = self.store;
                 o = self.options;
+                that = $(this).resizeEvents("instance");
                 eventId = self.getEventId($(this));
                 borderWidth = self.getBorderWidth();
                 startHelper = self._get$StartHelper(eventId);
@@ -1951,7 +1943,9 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                 endHelperPosition = endHelper.position();
                 endHelperHeight = endHelper.outerHeight();
 
+                startHelperPosition.top += borderWidth; //ie 9 fix
                 startTimeCoords = self.getCeilPosition(startHelperPosition);
+
                 endTimeTopCoords = endHelperPosition.top + endHelperHeight - borderWidth;
                 endTimeCoords = self.getFloorPosition({
                     top: endTimeTopCoords,
@@ -1968,10 +1962,27 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                 });
 
                 startCellTime = self._getTimeByPosition(startTimeCoords, startDay);
-                endCellTime = self._getEndTimeByPosition(endTimeCoords, endDay);
+
+                if (self.eventHasMinutes(store.endDate)) {
+                    endCellTime = self._getTimeByPosition(endTimeCoords, endDay);
+                } else {
+                    endCellTime = self._getEndTimeByPosition(endTimeCoords, endDay);
+                }
 
                 if (!startCellTime || !endCellTime) {
                     return;
+                }
+
+                startCellTime = $.extend({}, true, startCellTime);
+                endCellTime = $.extend({}, true, endCellTime);
+
+                if (that._isTopHandleActive) {
+                    endDayMinutes = store.endDate.minutes;
+                    endCellTime.minutes = endDayMinutes;
+
+                } else {
+                    startDayMinutes = store.startDate.minutes;
+                    startCellTime.minutes = startDayMinutes;
                 }
 
                 store.startDate = startCellTime;
@@ -2024,12 +2035,9 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
 
                 cellTime = cellData.time;
 
-                that._trigger('updateGridCoordinates', evt, {
-                    day: day,
-                    mousePosition: mousePosition
-                });
-
                 store[targetChanging] = cellTime;
+
+                that._trigger('updateGridCoordinates', evt, ui);
                 that._trigger('reRenderHelpers', evt, ui);
             },
 
@@ -2066,12 +2074,9 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
 
                 cellTime = cellData.time;
 
-                that._trigger('updateGridCoordinates', evt, {
-                    day: day,
-                    mousePosition: mousePosition
-                });
-
                 store[targetChanging] = cellTime;
+
+                that._trigger('updateGridCoordinates', evt, ui);
                 that._trigger('reRenderHelpers', evt, ui);
             },
             reRenderHelpers: function (evt, ui) {
@@ -2119,6 +2124,7 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                     parentHeight,
                     cellDataUnderMouse,
                     eventCoords,
+                    currentEvent,
                     cellGeometry,
                     event, finishCell,
                     cssRules, finishCellCoords;
@@ -2145,6 +2151,7 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                 weekDays = self.options.weekDays;
                 borderWidth = self.getBorderWidth();
                 parentHeight = that.pHeight - borderWidth;
+                currentEvent = self._getEventById(eventId);
 
                 function createHelper(cssObj) {
                     var currentHelper,
@@ -2202,15 +2209,8 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                         if (start == finish - 1) { //Last item
                             eventCoords = event.coordinates;
 
-                            finishCellCoords = {
-                                top: eventCoords.top + eventCoords.height,
-                                left: eventCoords.left
-                            }; // to normalize event end appearance if event has minutes
-
-                            finishCell = self._getCellDataByPosition(finishCellCoords, start);
-
                             cssRules.top = borderWidth;
-                            cssRules.height = finishCell.coordinates.top + finishCell.coordinates.height - borderWidth;
+                            cssRules.height = eventCoords.top + eventCoords.height - borderWidth;
                         }
 
                         $helperclone = createHelper(cssRules);
@@ -2226,13 +2226,6 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                     event = events[endDay] instanceof Array ? events[endDay][1] : events[endDay];
                     eventCoords = event.coordinates;
 
-                    finishCellCoords = {
-                        top: eventCoords.top + eventCoords.height,
-                        left: eventCoords.left
-                    }; // to normalize event end appearance if event has minutes
-
-                    finishCell = self._getCellDataByPosition(finishCellCoords, endDay);
-
                     mainHelperCss = {
                         top: cellCoords.top,
                         height: parentHeight - cellCoords.top + borderWidth,
@@ -2240,14 +2233,23 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                         left: cellCoords.left,
                     };
 
-                    if (cellTime.fullHour - finishCell.time.fullHour == 1) { //if difference between start and end == 1 hour
-                        mainHelperCss.top = cellCoords.top + cellCoords.height + borderWidth;
-                        mainHelperCss.height = mainHelperCss.height - cellCoords.height - borderWidth;
-                    };
+                    if (!self.eventHasMinutes(currentEvent.to)) {
+                        finishCellCoords = {
+                            top: eventCoords.top + eventCoords.height,
+                            left: eventCoords.left
+                        }; // to normalize event end appearance if event has minutes
+
+                        finishCell = self._getCellDataByPosition(finishCellCoords, endDay);
+
+                        if (cellTime.fullHour - finishCell.time.fullHour == 1) { //if difference between start and end == 1 hour
+                            mainHelperCss.top = cellCoords.top + cellCoords.height + borderWidth;
+                            mainHelperCss.height = mainHelperCss.height - cellCoords.height - borderWidth;
+                        };
+                    }
 
                     eventEndHelper = createHelper({
                         top: borderWidth,
-                        height: finishCell.coordinates.top + finishCell.coordinates.height - borderWidth,
+                        height: eventCoords.top + eventCoords.height - borderWidth,
                         width: eventCoords.width,
                         left: eventCoords.left
                     });
@@ -2302,16 +2304,9 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                     event = events[endDay] instanceof Array ? events[endDay][1] : events[endDay];
                     eventCoords = event.coordinates;
 
-                    finishCellCoords = {
-                        top: eventCoords.top + eventCoords.height,
-                        left: eventCoords.left
-                    };
-
-                    finishCell = self._getCellDataByPosition(finishCellCoords, endDay);
-
                     cssRules = {
                         top: cellCoords.top,
-                        height: (finishCell.coordinates.top + finishCell.coordinates.height) - cellCoords.top,
+                        height: (eventCoords.top + eventCoords.height) - cellCoords.top,
                         width: eventCoords.width,
                         left: eventCoords.left
                     };
@@ -2354,14 +2349,8 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                         };
 
                         if (start == finish) {
-                            finishCellCoords = {
-                                top: eventCoords.top + eventCoords.height,
-                                left: eventCoords.left
-                            };
 
-                            finishCell = self._getCellDataByPosition(finishCellCoords, finish);
-
-                            cssRules.height = finishCell.coordinates.top + finishCell.coordinates.height - borderWidth;
+                            cssRules.height = eventCoords.top + eventCoords.height - borderWidth;
                         }
 
                         $helperclone = createHelper(cssRules);
@@ -2388,6 +2377,7 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                     $parent,
                     eventId,
                     eventIdAttr,
+                    currentEvent,
                     mousePosition,
                     cellDataUnderMouse,
                     eventCoords, cellGeometry,
@@ -2409,6 +2399,7 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                 endDay = +store.endDate.day;
                 weekDays = self.options.weekDays;
                 eventCoords, cellGeometry;
+                currentEvent = self._getEventById(eventId);
                 borderWidth = self.getBorderWidth();
                 parentHeight = that.pHeight - borderWidth;
 
@@ -2467,15 +2458,8 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                         if (finish == start + 1) { //Last item
                             eventCoords = event.coordinates;
 
-                            startCellCoords = {
-                                top: eventCoords.top,
-                                left: eventCoords.left
-                            }; // to normalize event end appearance if event has minutes
-
-                            startCell = self._getCellDataByPosition(startCellCoords, finish);
-
-                            cssRules.top = startCell.coordinates.top;
-                            cssRules.height = parentHeight - startCell.coordinates.top + borderWidth;
+                            cssRules.top = eventCoords.top;
+                            cssRules.height = parentHeight - eventCoords.top + borderWidth;
                         }
 
                         $helperclone = createHelper(cssRules);
@@ -2494,12 +2478,6 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                     event = events[startDay] instanceof Array ? events[startDay][0] : events[startDay];
                     eventCoords = event.coordinates;
 
-                    startCellCoords = {
-                        top: eventCoords.top,
-                        left: eventCoords.left
-                    }; // to normalize event end appearance if event has minutes
-
-                    startCell = self._getCellDataByPosition(startCellCoords, startDay);
                     mainHelperCss = {
                         top: borderWidth,
                         height: cellCoords.top + cellCoords.height - borderWidth,
@@ -2507,13 +2485,23 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                         left: cellCoords.left
                     };
 
-                    if (startCell.time.fullHour - cellTime.fullHour == 1) { //if difference between start and end == 1 hour
-                        mainHelperCss.height = mainHelperCss.height - cellCoords.height - borderWidth;
-                    };
+                    if (!self.eventHasMinutes(currentEvent.from)) {
+                        startCellCoords = {
+                            top: eventCoords.top,
+                            left: eventCoords.left
+                        }; // to normalize event end appearance if event has minutes
+
+                        startCell = self._getCellDataByPosition(startCellCoords, startDay);
+
+                        if (startCell.time.fullHour - cellTime.fullHour == 1) {
+                            //if difference between start and end == 1 hour
+                            mainHelperCss.height = mainHelperCss.height - cellCoords.height - borderWidth;
+                        };
+                    }
 
                     endHelperCss = {
-                        top: startCell.coordinates.top,
-                        height: that.pHeight - startCell.coordinates.top,
+                        top: eventCoords.top,
+                        height: that.pHeight - eventCoords.top,
                         width: eventCoords.width,
                         left: eventCoords.left
                     };
@@ -2569,15 +2557,9 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                     event = events[endDay] instanceof Array ? events[endDay][0] : events[endDay];
                     eventCoords = event.coordinates;
 
-                    startCellCoords = {
-                        top: eventCoords.top,
-                        left: eventCoords.left
-                    }; // to normalize event end appearance if event has minutes
-
-                    startCell = self._getCellDataByPosition(startCellCoords, endDay);
                     cssRules = {
-                        top: startCell.coordinates.top,
-                        height: (cellCoords.top + cellCoords.height) - startCell.coordinates.top,
+                        top: eventCoords.top,
+                        height: (cellCoords.top + cellCoords.height) - eventCoords.top,
                         width: eventCoords.width,
                         left: eventCoords.left
                     };
@@ -2621,15 +2603,9 @@ $.widget('custom.scheduleEvents', $.custom.scheduleTable, {
                         };
 
                         if (finish == start) {
-                            startCellCoords = {
-                                top: eventCoords.top,
-                                left: eventCoords.left
-                            }; // to normalize event end appearance if event has minutes
 
-                            startCell = self._getCellDataByPosition(startCellCoords, finish);
-
-                            cssRules.top = startCell.coordinates.top;
-                            cssRules.height = that.pHeight - startCell.coordinates.top;
+                            cssRules.top = eventCoords.top;
+                            cssRules.height = that.pHeight - eventCoords.top;
                         }
 
                         $helperclone = createHelper(cssRules);

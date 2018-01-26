@@ -175,8 +175,9 @@ $.widget('custom.scheduleTable', {
             hours24Reg;
 
         timeReg = /^(\d+)\s?:?\s?(\d+)?\s?([a-zA-Z]{2})?$/;
+        hour = (hourObj.hour !== undefined) && hourObj.hour.toString();
 
-        if (timeReg.test(hourObj.hour.toString())) {
+        if (hour && timeReg.test(hour)) {
             time = hourObj.hour.toString().match(timeReg);
             hour = time[1];
             minutes = hourObj.minutes || time[2] || '00';
@@ -211,6 +212,8 @@ $.widget('custom.scheduleTable', {
                 minutes: minutes,
                 timePeriod: timePeriod
             }
+        } else {
+            console.error('Nothing passed to parse Date or passed not valid string');
         }
 
     },
